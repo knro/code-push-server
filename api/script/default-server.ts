@@ -134,6 +134,17 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       app.use(api.headers({ origin: process.env.CORS_ORIGIN || "http://localhost:4000" }));
       app.use(api.health({ storage: storage, redisManager: redisManager }));
 
+      // Add blob proxy route for emulated storage
+      if (process.env.EMULATED === 'true') {
+        const azureStorage = storage as AzureStorage;
+        app.get('/blob/:container/:blobId', (req, res) => {
+          const { container, blobId } = req.params;
+          azureStorage.proxyBlob(container, blobId, res).catch(() => {
+            res.status(404).send('Blob not found');
+          });
+        });
+      }
+
       if (process.env.DISABLE_ACQUISITION !== "true") {
         app.use(api.acquisition({ storage: storage, redisManager: redisManager }));
       }
